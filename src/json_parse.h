@@ -5,27 +5,29 @@
 #include <stdio.h>
 #include "stack.h"
 
-#define SIMPLE_OBJECT 0
-#define INNER_OBJECT 1
+#define SIMPLE_OBJECT_TYPE 0
+#define NESTED_OBJECT_TYPE 1
+
+#define MAX_BUFFER_SIZE 4096
 
 typedef struct __JSON_OBJECT_ {
   char *key;
   void *val;
 
-  //  char type;
+  char type;
   struct JSON_OBJECT *next;
 } JSON_OBJECT;
 
-struct JSON_OBJECT* parse_json(const char* filename);
+struct JSON_OBJECT* parse_json(char* filename);
 
-long unsigned int find_nested_object_end(const char buf[],
-					 const long unsigned int start,
-					 const long unsigned int end);
+long unsigned int find_nested_object_end(char buf[],
+					 long unsigned int start,
+					 long unsigned int end);
 
-struct JSON_OBJECT* parse_tokens(const char buf[],
-				 const long unsigned int size,
-				 const long unsigned int start,
-				 const long unsigned int end);
+struct JSON_OBJECT* parse_tokens(char buf[],
+				 long unsigned int size,
+				 long unsigned int start,
+				 long unsigned int end);
 #include "json_parse.c"
 
 #endif

@@ -1,5 +1,7 @@
 #include "stack.h"
 
+#define BUFFER_SIZE 4096
+
 struct JSON_OBJECT {
   char* key;
   void* val;
@@ -9,14 +11,14 @@ struct JSON_OBJECT {
 };
 
 struct JSON_OBJECT* parse_json(char *filename) {
+  char buf[BUFFER_SIZE];
+  memset(buf, 0, sizeof(buf));
+  
   FILE *file_ptr = fopen(filename, "r");
   if (file_ptr != NULL) {
-    char buf[MAX_BUFFER_SIZE];
-    memset(buf, 0, sizeof(buf));
-    
-    fread(buf, sizeof(char), MAX_BUFFER_SIZE, file_ptr);
-    fclose(file_ptr);
 
+    fread(buf, sizeof(char), BUFFER_SIZE, file_ptr);
+    fclose(file_ptr);
     long unsigned int len = strlen(buf);
 
     struct JSON_OBJECT *ret = parse_tokens(buf, len, 0, len);
@@ -54,23 +56,27 @@ struct JSON_OBJECT* parse_tokens(char buf[],
 				 long unsigned int start,
 				 long unsigned int end) {
   if (buf[start] != '{') {
+    printf("fuck\n");
     return NULL;
   }
   struct JSON_OBJECT* parsed_object =
     (struct JSON_OBJECT *) malloc(sizeof(struct JSON_OBJECT));
   parsed_object->key = "DEFAULT";
   parsed_object->val = "DEFAULT_VAL";
-  parsed_object->type = SIMPLE_OBJECT_TYPE;
+
+  parsed_object->type = SIMPLE_OBJECT;
   
   struct JSON_OBJECT* iter_object =
     (struct JSON_OBJECT *) malloc(sizeof(struct JSON_OBJECT));
+
   parsed_object->next = iter_object;
   
   long unsigned int buf_iloc = start + 1;
+
   char cur_char;
   char* token;
-  while (buf_iloc < end &&
-	 buf[buf_iloc] != 0) {
+  while (buf_iloc < end && buf[buf_iloc] != 0) {
+
     cur_char = buf[buf_iloc];
     switch(cur_char) {
     case '{':
@@ -81,30 +87,28 @@ struct JSON_OBJECT* parse_tokens(char buf[],
    	parse_tokens(buf,size,buf_iloc,nested_obj_end);
 
       iter_object->val = nested_object;
-      iter_object->type = NESTED_OBJECT_TYPE;
+      iter_object->type = INNER_OBJECT;
       
       buf_iloc = nested_obj_end + 1;
       break;
-
     case '"':
       long unsigned int start_cpy = buf_iloc+1;
       do {
 	++buf_iloc;
-      } while ( (buf[buf_iloc]) != '"'
-	       && (buf_iloc != 0));
+      } while (buf[buf_iloc] != '"'
+	       && buf_iloc != 0);
+      
       token = (char *) malloc(sizeof(char) * (buf_iloc - start_cpy));
-
       strncpy(token, &buf[start_cpy], buf_iloc - start_cpy);
       
       if (iter_object->key == NULL) {
 	iter_object->key = token;
       } else {
 	iter_object->val = token;
-	iter_object->type = SIMPLE_OBJECT_TYPE;
+	iter_object->type = SIMPLE_OBJECT;
       }
       ++buf_iloc;
       break;
-
     case ',':
       iter_object->next = (struct JSON_OBJECT*)
 	malloc(sizeof(struct JSON_OBJECT));
@@ -117,6 +121,6 @@ struct JSON_OBJECT* parse_tokens(char buf[],
       ++buf_iloc;
       break;
     }
-  }  
-  return parsed_object->next;
+  }
+  return parsed_object;
 }
