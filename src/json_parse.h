@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include "stack.h"
 
-#define SIMPLE_OBJECT_TYPE 0
-#define NESTED_OBJECT_TYPE 1
+#define SIMPLE_OBJECT_TYPE 1
+#define NESTED_OBJECT_TYPE 2
 
 #define MAX_BUFFER_SIZE 4096
 
@@ -25,7 +25,6 @@ long unsigned int find_nested_object_end(char buf[],
 					 long unsigned int end);
 
 struct JSON_OBJECT* parse_tokens(char buf[],
-				 long unsigned int size,
 				 long unsigned int start,
 				 long unsigned int end);
 #include "json_parse.c"

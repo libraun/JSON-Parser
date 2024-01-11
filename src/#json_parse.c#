@@ -32,8 +32,9 @@ void print_tabs(unsigned int num_tabs) {
   }
 }
 
-void print_json_object(struct JSON_OBJECT* iter_ptr,
+void print_json_object(struct JSON_OBJECT* object,
 		       unsigned int level) {
+  struct JSON_OBJECT *iter_ptr = object;
   while (iter_ptr != NULL) {
     print_tabs(level);
     printf("'%s' : ", iter_ptr->key);
@@ -96,6 +97,7 @@ struct JSON_OBJECT* parse_tokens(char buf[],
   struct JSON_OBJECT* parsed_object =
     (struct JSON_OBJECT *) malloc(sizeof(struct JSON_OBJECT));
   parsed_object->key = "DEFAULT";
+
   parsed_object->val = "DEFAULT_VAL";
 
   parsed_object->type = SIMPLE_OBJECT_TYPE;
@@ -115,6 +117,8 @@ struct JSON_OBJECT* parse_tokens(char buf[],
     cur_char = buf[buf_iloc];
     
     switch(cur_char) {
+    case '}':
+      return parsed_object;
     case '{':
       long unsigned int nested_obj_end =
 	find_nested_object_end(buf, buf_iloc+1, end);
@@ -124,7 +128,7 @@ struct JSON_OBJECT* parse_tokens(char buf[],
       object_type = NESTED_OBJECT_TYPE;
       value = (struct JSON_OBJECT *)
 	malloc(sizeof(struct JSON_OBJECT));
-      buf_iloc = nested_obj_end;
+      buf_iloc = nested_obj_end + 1;
       break;
       
     case '"':
@@ -150,7 +154,9 @@ struct JSON_OBJECT* parse_tokens(char buf[],
       if (token != NULL && value != NULL) {
 	struct JSON_OBJECT* insert_node = (struct JSON_OBJECT *)
 	  malloc(sizeof(JSON_OBJECT));
-	//	insert_node->next = NULL;c	
+
+	//	insert_node->next = NULL;
+	
 	insert_node->key = (char *) malloc(strlen(token));
 	strncpy(insert_node->key, token, strlen(token));
 	insert_node->type = object_type;
@@ -164,8 +170,8 @@ struct JSON_OBJECT* parse_tokens(char buf[],
 	}
 	add_to_object(insert_node, &parsed_object);
 
-	token = NULL;
-	value = NULL;
+	//token = NULL;
+	//	value = NULL;
       }      
       ++buf_iloc;
       break;
