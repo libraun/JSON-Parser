@@ -26,9 +26,9 @@ can be found below for a function that traverses a JSON_OBJECT, printing a node
 _only if_ it is of the type "STRING_VALUE": 
 
 _void_ traverse_json(struct JSON_OBJECT *my_json_object_ptr) { <br/>
-  if (my_json_object_ptr->type == NESTED_VALUE) { <br/>
-    traverse_json(my_json_object_ptr->val); <br/>
-  } else if (my_json_object_ptr->type == STRING_VALUE) { <br/>
-    print_key_value_pair(my_json_object_ptr->key, my_json_object_ptr->val); <br/>
-  } <br/>
+  &ensp;if (my_json_object_ptr->type == NESTED_VALUE) { <br/>
+    &emsp;traverse_json(my_json_object_ptr->val); <br/>
+  &ensp;} else if (my_json_object_ptr->type == STRING_VALUE) { <br/>
+    &emsp;print_key_value_pair(my_json_object_ptr->key, my_json_object_ptr->val); <br/>
+  &ensp;} <br/>
 }
