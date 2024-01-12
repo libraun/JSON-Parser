@@ -1,4 +1,5 @@
-#include "stack.h"
+/** @file "parse_json.c"
+ *  @author "Jet Braun" */
 
 struct JSON_OBJECT {
   char* key;
@@ -8,27 +9,55 @@ struct JSON_OBJECT {
   struct JSON_OBJECT* next;
 };
 
-struct JSON_OBJECT* parse_json(char *filename) {
+struct JSON_OBJECT *parse_json_from_file(const char *filename) {
+  char buf[MAX_BUFFER_SIZE];
+  memset(buf, 0, sizeof(buf));
+  
   FILE *file_ptr = fopen(filename, "r");
   if (file_ptr != NULL) {
-    char buf[MAX_BUFFER_SIZE];
-    memset(buf, 0, sizeof(buf));
-    
+
     fread(buf, sizeof(char), MAX_BUFFER_SIZE, file_ptr);
     fclose(file_ptr);
-
     long unsigned int len = strlen(buf);
 
-    struct JSON_OBJECT *ret = parse_tokens(buf, len, 0, len);
+    struct JSON_OBJECT *ret = parse_tokens(buf, 0, len);
 
     return ret;
   }
   return NULL;
 }
 
-long unsigned int find_nested_object_end(char buf[],
-					 long unsigned int start,
-					 long unsigned int size) {
+void print_tabs(unsigned int num_tabs) {
+  for (int i = 0; i < num_tabs; ++i) {
+
+    printf("\t");
+  }
+}
+
+void print_json_object(struct JSON_OBJECT* iter_ptr,
+		       unsigned int level) {
+  printf("{\n");
+  while (iter_ptr != NULL) {
+    print_tabs(level);
+    printf("'%s' : ", iter_ptr->key);
+    if (iter_ptr->type == NESTED_VALUE) {
+      print_json_object((struct JSON_OBJECT *) iter_ptr->val,
+			level+1);
+      print_tabs(level);
+      printf("},\n");
+    } else {
+      printf("'%s',\n",(char *) iter_ptr->val);
+    }
+    iter_ptr = iter_ptr->next;
+  }
+  if (level == 1) {
+    printf("}\n");
+  }
+} 
+
+long unsigned int find_nested_object_end(const char buf[],
+					 const long unsigned int start,
+					 const long unsigned int size) {
   long unsigned int idx = start;
   unsigned int opening_bracket_count = 1;
   unsigned int closing_bracket_count = 0;
@@ -49,67 +78,107 @@ long unsigned int find_nested_object_end(char buf[],
   return idx;
 }
 
-struct JSON_OBJECT* parse_tokens(char buf[],
-				 long unsigned int size,
-				 long unsigned int start,
-				 long unsigned int end) {
-  if (buf[start] != '{') {
-    return NULL;
+void add_to_object(struct JSON_OBJECT *item,
+		   struct JSON_OBJECT **head) {
+  if (head == NULL) {
+    head = &item;
+    return;
   }
-  struct JSON_OBJECT* parsed_object =
+  struct JSON_OBJECT *iter = *head;
+  while (iter->next != NULL) {
+    iter = iter->next;
+  }
+  iter->next = item;
+}
+
+struct JSON_OBJECT *parse_tokens(const char buf[],
+				 const long unsigned int start,
+				 const long unsigned int end) {
+  struct JSON_OBJECT *parsed_object =
     (struct JSON_OBJECT *) malloc(sizeof(struct JSON_OBJECT));
   parsed_object->key = "DEFAULT";
   parsed_object->val = "DEFAULT_VAL";
-  parsed_object->type = SIMPLE_OBJECT_TYPE;
-  
-  struct JSON_OBJECT* iter_object =
-    (struct JSON_OBJECT *) malloc(sizeof(struct JSON_OBJECT));
-  parsed_object->next = iter_object;
-  
+
+  parsed_object->type = STRING_VALUE;
+  parsed_object->next = NULL;
+				    
   long unsigned int buf_iloc = start + 1;
+
+  long unsigned int string_start_idx;
+  long unsigned int num_chars;
+  
+  char *token = NULL;
+  void *value = NULL;  
+  char value_type = NULL_VALUE;
+
   char cur_char;
-  char* token;
-  while (buf_iloc < end &&
-	 buf[buf_iloc] != 0) {
+  while (buf_iloc < end) {
     cur_char = buf[buf_iloc];
     switch(cur_char) {
     case '{':
-      long unsigned int nested_obj_end =
+      long unsigned int nested_value_end =
 	find_nested_object_end(buf, buf_iloc+1, end);
       
-      struct JSON_OBJECT *nested_object =
-   	parse_tokens(buf,size,buf_iloc,nested_obj_end);
+      struct JSON_OBJECT *nested_value =
+   	parse_tokens(buf,buf_iloc,nested_value_end);
 
-      iter_object->val = nested_object;
-      iter_object->type = NESTED_OBJECT_TYPE;
-      
-      buf_iloc = nested_obj_end + 1;
+      value_type = NESTED_VALUE;
+      //      value = (struct JSON_OBJECT *)
+      //.	malloc(sizeof(struct JSON_OBJECT));
+      value = nested_value;
+      buf_iloc = nested_value_end;
       break;
-
+      
     case '"':
-      long unsigned int start_cpy = buf_iloc+1;
+      /* This is basically asking for a buffer overflow on empty
+	 strings. This should be addressed. */
+      string_start_idx = buf_iloc + 1;
       do {
 	++buf_iloc;
-      } while ( (buf[buf_iloc]) != '"'
-	       && (buf_iloc != 0));
-      token = (char *) malloc(sizeof(char) * (buf_iloc - start_cpy));
-
-      strncpy(token, &buf[start_cpy], buf_iloc - start_cpy);
+      } while (buf_iloc < end &&
+	       buf[buf_iloc] != '"');
       
-      if (iter_object->key == NULL) {
-	iter_object->key = token;
-      } else {
-	iter_object->val = token;
-	iter_object->type = SIMPLE_OBJECT_TYPE;
+      num_chars = buf_iloc - string_start_idx;
+      if (token == NULL) {
+	token = (char *) malloc(sizeof(char) * num_chars);
+	strncpy(token, &buf[string_start_idx], num_chars);
+      } else if (value == NULL) {
+	value_type = STRING_VALUE;
+	value = (char *) malloc(sizeof(char) * num_chars);
+	strncpy(value, &buf[string_start_idx], num_chars);
       }
       ++buf_iloc;
       break;
-
+   
     case ',':
-      iter_object->next = (struct JSON_OBJECT*)
-	malloc(sizeof(struct JSON_OBJECT));
-      iter_object = iter_object->next;
-      
+      /** Current char is a comma, meaning we should have two (non-null) fields.
+	  Allocate memory for a new JSON node, assign respective values,
+	  and add to the end of the JSON_OBJECT. **/
+      if (token != NULL && value != NULL) {
+	struct JSON_OBJECT* insert_node = (struct JSON_OBJECT *)
+	  malloc(sizeof(struct JSON_OBJECT));
+	insert_node->next = NULL;	
+	insert_node->key = (char *) malloc( strnlen(token, MAX_STRING_LEN) );
+	strncpy(insert_node->key, token, strnlen(token, MAX_STRING_LEN));
+	insert_node->type = value_type;
+
+	/** Allocate memory to the value of new JSON node
+	  * based on which "object_type" it is, and assign accordingly **/
+	if (value_type == STRING_VALUE) {
+	  insert_node->val = (char *) malloc(strlen(value));
+	  strncpy(insert_node->val, value, strlen(value));
+	} else {
+	  insert_node->val = (struct JSON_OBJECT *)
+	    malloc(sizeof(struct JSON_OBJECT));
+	  insert_node->val = value;
+	}
+        add_to_object(insert_node, &parsed_object);
+
+	/* Reset the required JSON_OBJECT fields */
+	token = NULL;
+	value = NULL;
+	value_type = NULL_VALUE;
+      }      
       ++buf_iloc;
       break;
       
@@ -117,6 +186,6 @@ struct JSON_OBJECT* parse_tokens(char buf[],
       ++buf_iloc;
       break;
     }
-  }  
+  }
   return parsed_object->next;
 }
