@@ -114,6 +114,7 @@ struct JSON_OBJECT *parse_tokens(const char buf[],
   char cur_char;
   while (buf_iloc < end) {
     cur_char = buf[buf_iloc];
+    
     switch(cur_char) {
     case '{':
       long unsigned int nested_value_end =
@@ -149,7 +150,7 @@ struct JSON_OBJECT *parse_tokens(const char buf[],
       }
       ++buf_iloc;
       break;
-   
+    case '}':
     case ',':
       /** Current char is a comma, meaning we should have two (non-null) fields.
 	  Allocate memory for a new JSON node, assign respective values,
