@@ -58,6 +58,7 @@ void print_json_object(struct JSON_OBJECT* iter_ptr,
 long unsigned int find_nested_object_end(const char buf[],
 					 const long unsigned int start,
 					 const long unsigned int size) {
+
   long unsigned int idx = start;
   unsigned int opening_bracket_count = 1;
   unsigned int closing_bracket_count = 0;
@@ -69,6 +70,30 @@ long unsigned int find_nested_object_end(const char buf[],
       opening_bracket_count = opening_bracket_count + 1;
       break;
     case '}':
+      closing_bracket_count = closing_bracket_count + 1;
+      break;
+    default: break;
+    }
+    ++idx;
+  }
+  return idx;
+}
+
+long unsigned int find_nested_array_end(const char buf[],
+					const long unsigned int start,
+					const long unsigned int size) {
+
+  long unsigned int idx = start;
+  unsigned int opening_bracket_count = 1;
+  unsigned int closing_bracket_count = 0;
+
+  while (opening_bracket_count != closing_bracket_count
+	 && idx < size) {
+    switch (buf[idx]) {
+    case '[':
+      opening_bracket_count = opening_bracket_count + 1;
+      break;
+    case ']':
       closing_bracket_count = closing_bracket_count + 1;
       break;
     default: break;
@@ -106,40 +131,42 @@ struct JSON_OBJECT *parse_tokens(const char buf[],
 
   long unsigned int string_start_idx;
   long unsigned int num_chars;
-  
+
+  long unsigned int nested_value_end;
+  struct JSON_OBJECT* nested_value;
+
   char *token = NULL;
   void *value = NULL;  
   char value_type = NULL_VALUE;
-
-  char cur_char;
   while (buf_iloc < end) {
-    cur_char = buf[buf_iloc];
-    
-    switch(cur_char) {
-    case '{':
-      long unsigned int nested_value_end =
-	find_nested_object_end(buf, buf_iloc+1, end);
-      
-      struct JSON_OBJECT *nested_value =
-   	parse_tokens(buf,buf_iloc,nested_value_end);
+    switch(buf[buf_iloc]) {
+    case 0:
+      /* Unexpected null-byte encountered; exit completely.*/
+      exit(-1);
+    case '[':
+      nested_value_end = find_nested_array_end(buf, buf_iloc+1, end);
 
+      nested_value = parse_tokens(buf, buf_iloc, nested_value_end);
+      
       value_type = NESTED_VALUE;
-      //      value = (struct JSON_OBJECT *)
-      //.	malloc(sizeof(struct JSON_OBJECT));
+      value = nested_value;
+      buf_iloc = nested_value_end;
+      break;
+    case '{':
+      nested_value_end = find_nested_object_end(buf, buf_iloc+1, end);
+      
+      nested_value = parse_tokens(buf, buf_iloc, nested_value_end);
+      
+      value_type = NESTED_VALUE;
       value = nested_value;
       buf_iloc = nested_value_end;
       break;
       
     case '"':
-      /* This is basically asking for a buffer overflow on empty
-	 strings. This should be addressed. */
       string_start_idx = buf_iloc + 1;
-      do {
-	++buf_iloc;
-      } while (buf_iloc < end &&
-	       buf[buf_iloc] != '"');
-      
+      while ( (++buf_iloc < end) && (buf[buf_iloc] != '"') ); // Just increment buf_iloc
       num_chars = buf_iloc - string_start_idx;
+      
       if (token == NULL) {
 	token = (char *) malloc(sizeof(char) * num_chars);
 	strncpy(token, &buf[string_start_idx], num_chars);

@@ -65,5 +65,6 @@ struct JSON_OBJECT *parse_tokens(const char buf[],
  *                 Used for printing a formatted number of tabs. */
 void print_json_object(struct JSON_OBJECT *object,
 		       unsigned int level);
+
 #include "json_parse.c"
 #endif
