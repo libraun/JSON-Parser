@@ -3,9 +3,9 @@ A JSON parser built in C.
 
 ## Functionality
 
-### parse_json_from_filename(char *filename)
+### parse_json(FILE * fp)
 
-Accepts a path to a file (relative or absolute) and returns a fully parsed JSON data structure.
+Accepts a path to a file pointer to a .json file and returns a fully parsed JSON data structure (if valid).
 
 ### add_to_object(struct JSON_OBJECT *item, struct JSON_OBJECT **head)
 
